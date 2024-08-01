@@ -5,26 +5,27 @@ const assetSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  assetno: {
+    type: String,
+    required: true
+  },
   serialno: {
     type: String,
     required: true
   },
   model: {
     type: String,
-    required: true
   },
   quantity: {
     type: String,
-    required: true
   },
   description: {
     type: String,
-    required: false
   },
   status: {
     type: String,
-    enum: ['Available', 'Under Maintenance', 'retire'], // Enum for status options
-    default: 'Available'
+    enum: ["available", "under maintenance", "retired"], // Define valid values
+    default: "available" // Optional: default value if none is set
   }
 });
 
