@@ -24,8 +24,8 @@ const assetSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["available", "under maintenance", "retired"], // Define valid values
-    default: "available" // Optional: default value if none is set
+    enum: ["Available", "Under Maintenance", "retire"], // Define valid values
+    default: "Available" // Optional: default value if none is set
   }
 });
 

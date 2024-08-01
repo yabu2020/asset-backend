@@ -55,7 +55,7 @@ app.get("/users", (req, res) => {
 });
 // Endpoint to register an asset
 app.post("/registerasset", (req, res) => {
-  const { name, serialno, model, quantity, description, status } = req.body;
+  const { name, assetno,serialno, model, quantity, description, status } = req.body;
 
   if (!name) {
     return res.status(400).json({ error: "Name is required" });
@@ -63,6 +63,7 @@ app.post("/registerasset", (req, res) => {
 
   const newAsset = new AssetModel({
     name,
+    assetno,
     serialno,
     model,
     quantity,
@@ -86,9 +87,9 @@ app.get("/assets", (req, res) => {
 app.put("/updateasset/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, serialno, model, quantity, description, status } = req.body;
+    const { name,assetno, serialno, model, quantity, description, status } = req.body;
 
-    const updatedAsset = await AssetModel.findByIdAndUpdate(id, { name,serialno,model,quantity, description, status}, { new: true });
+    const updatedAsset = await AssetModel.findByIdAndUpdate(id, { name,assetno,serialno,model,quantity, description, status}, { new: true });
     if (updatedAsset) {
       res.json(updatedAsset);
     } else {
