@@ -1,6 +1,10 @@
 const mongoose = require('mongoose');
 
 const assetSchema = new mongoose.Schema({
+  assetid: {
+    type: String,
+    required: true
+  },
   name: {
     type: String,
     required: true
