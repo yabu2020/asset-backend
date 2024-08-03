@@ -1,21 +1,21 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const assetSchema = new mongoose.Schema({
   assetid: {
     type: String,
-    required: true
+    required: false,
   },
   name: {
     type: String,
-    required: true
+    required: false,
   },
   assetno: {
     type: String,
-    required: true
+    required: true,
   },
   serialno: {
     type: String,
-    required: true
+    required: true,
   },
   model: {
     type: String,
@@ -29,10 +29,10 @@ const assetSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ["Available", "Under Maintenance", "retire"], // Define valid values
-    default: "Available" // Optional: default value if none is set
-  }
+    default: "Available", // Optional: default value if none is set
+  },
 });
 
-const AssetModel = mongoose.model('Asset', assetSchema);
+const AssetModel = mongoose.model("Asset", assetSchema);
 
 module.exports = AssetModel;
