@@ -6,13 +6,17 @@ const bcrypt = require("bcrypt"); // For hashing passwords
 const EmployeeModel = require("./model/Employee");
 const AssetModel = require("./model/Asset");
 const AssignmentModel = require("./model/Assignment");
+const TransferHistory = require('./model/TransferHistory');
+
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 app.use(bodyParser.json());
+
 mongoose.connect(
-  "mongodb+srv://henokegezew33:yabu2020@cluster0.s4fvdml.mongodb.net/"
+  "mongodb+srv://henokegezew33:yabu2020@cluster0.s4fvdml.mongodb.net/",
+   
 );
 const validatePassword = (password) => {
   // Check password length
@@ -312,7 +316,6 @@ app.post("/giveasset", async (req, res) => {
       asset: {
         assetid: asset.id,
         name: asset.name,
-
         serialno: asset.serialno,
       },
       user: {
@@ -351,6 +354,139 @@ app.get("/assigned-assets", (req, res) => {
       res.status(500).json({ message: "Error fetching assigned assets" })
     );
 });
+
+
+
+// Endpoint to transfer an asset from one user to another
+app.post("/transferasset", async (req, res) => {
+  const { assetId, fromUserId, toUserId } = req.body;
+  console.log(assetId);
+  console.log(fromUserId);
+  console.log(toUserId);
+  if (!assetId || !fromUserId || !toUserId) {
+    return res.status(400).json({ error: "Asset ID, from user ID, and to user ID are required" });
+  }
+
+  try {
+    // Validate that IDs are strings
+    if (typeof assetId !== 'string' || typeof fromUserId !== 'string' || typeof toUserId !== 'string' ) {
+      return res.status(400).json({ error: "Invalid ID format" });
+    }
+    
+    // Start a session
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    // Find the asset and users by string ID
+    const asset = await AssetModel.findOne({ assetid: assetId }).session(session);
+    const fromUser = await EmployeeModel.findOne({ id: fromUserId }).session(session);
+    const toUser = await EmployeeModel.findOne({ id: toUserId }).session(session);
+ console.log(fromUser);
+ console.log(toUser);
+ console.log(asset);
+    if (!asset || !fromUser || !toUser) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "Asset or User not found" });
+    }
+
+    // Find the current assignment
+    const currentAssignment = await AssignmentModel.findOne({
+      "asset.assetid": assetId,
+      "user.id": fromUserId,
+    }).session(session);
+
+    if (!currentAssignment) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).json({ error: "Current assignment not found" });
+    }
+
+    // Update the assignment to the new user
+    currentAssignment.user = {
+      id: toUserId,
+      name: toUser.name,
+      email: toUser.email,
+      department: toUser.department,
+    };
+    await currentAssignment.save({ session });
+
+    // Record the transfer in TransferHistory
+    const transferRecord = new TransferHistory({
+      assetId: asset.assetid,
+      fromUserId: fromUser.id,
+      toUserId: toUser.id,
+      date: new Date(),
+    });
+    await transferRecord.save({ session });
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.json({ message: "Asset transferred successfully", transferRecord });
+  } catch (error) {
+    console.error("Error transferring asset:", error);
+    res.status(500).json({ error: "Error transferring asset", details: error.message });
+  }
+});
+// Define an endpoint to fetch transfer history
+app.get("/transfer-history", async (req, res) => {
+  try {
+    const transferHistory = await TransferHistory.find({})
+      .populate('assetId') // Optional: populate the asset details
+      .populate('fromUserId') // Optional: populate the user details
+      .populate('toUserId'); // Optional: populate the user details
+    res.json(transferHistory);
+  } catch (error) {
+    console.error("Error fetching transfer history:", error);
+    res.status(500).json({ error: "Error fetching transfer history" });
+  }
+});
+
+// Middleware to extract user from token
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (token == null) return res.sendStatus(401);
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.userEmail = user.email; // Set user email in request
+    next();
+  });
+};
+
+
+// Fetch assigned assets for the logged-in user
+app.get("/user-assigned-assets", authenticateToken, async (req, res) => {
+  try {
+    const userEmail = req.userEmail;
+
+    if (!userEmail) {
+      return res.status(400).json({ error: "User email is required" });
+    }
+
+    // Find the user by email
+    const user = await EmployeeModel.findOne({ email: userEmail });
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Find assignments for the user
+    const assignments = await AssignmentModel.find({ "user.id": user._id })
+      .populate("asset") // Populate asset details
+      .populate("user"); // Populate user details
+
+    res.json(assignments);
+  } catch (error) {
+    console.error("Error fetching user assigned assets:", error);
+    res.status(500).json({ error: "Error fetching user assigned assets", details: error.message });
+  }
+});
+
+
 
 // Endpoint to reset password
 app.post("/resetpassword", async (req, res) => {
