@@ -244,8 +244,6 @@ app.put("/updateasset/:id", async (req, res) => {
   }
 });
 // Endpoint to assign asset to user
-
-
 app.post("/giveasset", async (req, res) => {
   const { assetId, userId } = req.body;
 
@@ -410,7 +408,7 @@ try{
     // Find the current assignment
     const currentAssignment = await AssignmentModel.findOne({
       "asset.assetid": assetId,
-      //"fromUser.id": fromUserId,
+      "fromUser.id": fromUserId,
     }).session(session);
      
     if (!currentAssignment) {
