@@ -360,42 +360,59 @@ app.get("/assigned-assets", (req, res) => {
 // Endpoint to transfer an asset from one user to another
 app.post("/transferasset", async (req, res) => {
   const { assetId, fromUserId, toUserId } = req.body;
-  console.log(assetId);
-  console.log(fromUserId);
-  console.log(toUserId);
+  
   if (!assetId || !fromUserId || !toUserId) {
     return res.status(400).json({ error: "Asset ID, from user ID, and to user ID are required" });
   }
+try{
+  if (!mongoose.Types.ObjectId.isValid(assetId)) {
+    return res.status(400).json({ error: "Invalid Asset ID" });
+  }
 
-  try {
-    // Validate that IDs are strings
-    if (typeof assetId !== 'string' || typeof fromUserId !== 'string' || typeof toUserId !== 'string' ) {
-      return res.status(400).json({ error: "Invalid ID format" });
-    }
+  if (!mongoose.Types.ObjectId.isValid(fromUserId)) {
+    return res.status(400).json({ error: "Invalid User ID" });
+  }
+  if (!mongoose.Types.ObjectId.isValid(toUserId)) {
+    return res.status(400).json({ error: "Invalid User ID" });
+  }
     
     // Start a session
     const session = await mongoose.startSession();
     session.startTransaction();
 
-    // Find the asset and users by string ID
-    const asset = await AssetModel.findOne({ assetid: assetId }).session(session);
-    const fromUser = await EmployeeModel.findOne({ id: fromUserId }).session(session);
-    const toUser = await EmployeeModel.findOne({ id: toUserId }).session(session);
- console.log(fromUser);
- console.log(toUser);
- console.log(asset);
-    if (!asset || !fromUser || !toUser) {
+   // Find the asset and user
+   const asset = await AssetModel.findById(assetId).session(session);
+   if (!asset) {
+     await session.abortTransaction();
+     session.endSession();
+     return res.status(404).json({ error: "Asset not found" });
+   }
+
+   const fromUser = await EmployeeModel.findById(fromUserId).session(session);
+   if (!fromUser) {
+     await session.abortTransaction();
+     session.endSession();
+     return res.status(404).json({ error: "User not found" });
+   }
+   const toUser = await EmployeeModel.findById(toUserId).session(session);
+   if (!toUser) {
+     await session.abortTransaction();
+     session.endSession();
+     return res.status(404).json({ error: "User not found" });
+   }
+     // Check if both users are in the same department
+     if (fromUser.department !== toUser.department) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(404).json({ error: "Asset or User not found" });
+      return res.status(400).json({ error: "Users must be in the same department to transfer assets" });
     }
 
     // Find the current assignment
     const currentAssignment = await AssignmentModel.findOne({
       "asset.assetid": assetId,
-      "user.id": fromUserId,
+      //"fromUser.id": fromUserId,
     }).session(session);
-
+     
     if (!currentAssignment) {
       await session.abortTransaction();
       session.endSession();
@@ -412,19 +429,34 @@ app.post("/transferasset", async (req, res) => {
     await currentAssignment.save({ session });
 
     // Record the transfer in TransferHistory
-    const transferRecord = new TransferHistory({
-      assetId: asset.assetid,
-      fromUserId: fromUser.id,
-      toUserId: toUser.id,
-      date: new Date(),
+    const transfer = new TransferHistory({
+      asset: {
+        assetid: asset.id,
+        name: asset.name,
+        serialno: asset.serialno,
+      },
+      fromUser: {
+        id: fromUser.id,
+        name: fromUser.name,
+        department: fromUser.department,
+        email: fromUser.email,
+      },
+      toUser: {
+        id: toUser.id,
+        name: toUser.name,
+        department: toUser.department,
+        email: toUser.email,
+      },
+      dateTransfered: new Date(),
     });
-    await transferRecord.save({ session });
+
+    await transfer.save({ session });
 
     // Commit the transaction
     await session.commitTransaction();
     session.endSession();
 
-    res.json({ message: "Asset transferred successfully", transferRecord });
+    res.json(transfer);
   } catch (error) {
     console.error("Error transferring asset:", error);
     res.status(500).json({ error: "Error transferring asset", details: error.message });
@@ -434,9 +466,9 @@ app.post("/transferasset", async (req, res) => {
 app.get("/transfer-history", async (req, res) => {
   try {
     const transferHistory = await TransferHistory.find({})
-      .populate('assetId') // Optional: populate the asset details
-      .populate('fromUserId') // Optional: populate the user details
-      .populate('toUserId'); // Optional: populate the user details
+      .populate('asset') // Optional: populate the asset details
+      .populate('fromUser') // Optional: populate the user details
+      .populate('toUser'); // Optional: populate the user details
     res.json(transferHistory);
   } catch (error) {
     console.error("Error fetching transfer history:", error);

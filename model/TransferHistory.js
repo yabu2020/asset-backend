@@ -1,10 +1,24 @@
-const mongoose = require('mongoose');
-
+const mongoose = require("mongoose");
 const transferHistorySchema = new mongoose.Schema({
-  assetId: { type: String, required: true },
-  fromUserId: { type: String, required: true },
-  toUserId: { type: String, required: true },
-  date: { type: Date, default: Date.now },
+  asset: {
+    assetid: String,
+    name: String,
+    serialno: String,
+  },
+  fromUser: {
+    id: String,
+    name: String,
+    email: String,
+    department: String,
+  },
+  toUser: {
+    id: String,
+    name: String,
+    email: String,
+    department: String,
+  },
+
+  dateTransfered: { type: Date, default: Date.now },
 });
 
 module.exports = mongoose.model('TransferHistory', transferHistorySchema);
