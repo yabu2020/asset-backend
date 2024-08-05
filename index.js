@@ -408,7 +408,7 @@ try{
     // Find the current assignment
     const currentAssignment = await AssignmentModel.findOne({
       "asset.assetid": assetId,
-      "fromUser.id": fromUserId,
+      //"fromUser.id": fromUserId,
     }).session(session);
      
     if (!currentAssignment) {
