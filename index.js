@@ -65,7 +65,6 @@ app.post("/", async (req, res) => {
     res.status(500).json({ message: "An error occurred during login" });
   }
 });
-
 app.post("/adduser", async (req, res) => {
   const { role, id, name, email, password, department } = req.body;
 
@@ -306,7 +305,7 @@ app.post("/giveasset", async (req, res) => {
     asset.quantity -= 1;
     // Save the updated asset
     await asset.save({ session });
-    console.log("Asset quantity before update:", asset.quantity);
+    // console.log("Asset quantity before update:", asset.quantity);
   
 
     // Create a new assignment
@@ -474,47 +473,98 @@ app.get("/transfer-history", async (req, res) => {
   }
 });
 
-// Middleware to extract user from token
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  
-  if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.userEmail = user.email; // Set user email in request
-    next();
-  });
-};
+// Endpoint to get assigned assets for a specific user
+app.get('/assigned-assets/:userId', async (req, res) => {
+  const { userId } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ error: 'Invalid User ID' });
+  }
 
-// Fetch assigned assets for the logged-in user
-app.get("/user-assigned-assets", authenticateToken, async (req, res) => {
   try {
-    const userEmail = req.userEmail;
+    const userAssignments = await AssignmentModel.find({ 'user.id': userId })
+      .populate('asset') // Populates the asset field with asset details
+      .exec();
 
-    if (!userEmail) {
-      return res.status(400).json({ error: "User email is required" });
+    if (!userAssignments || userAssignments.length === 0) {
+      return res.status(404).json({ message: 'No assets assigned to this user' });
     }
 
-    // Find the user by email
-    const user = await EmployeeModel.findOne({ email: userEmail });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    // Find assignments for the user
-    const assignments = await AssignmentModel.find({ "user.id": user._id })
-      .populate("asset") // Populate asset details
-      .populate("user"); // Populate user details
-
-    res.json(assignments);
+    res.json(userAssignments);
   } catch (error) {
-    console.error("Error fetching user assigned assets:", error);
-    res.status(500).json({ error: "Error fetching user assigned assets", details: error.message });
+    console.error('Error fetching user assignments:', error);
+    res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
   }
 });
+// app.get('/assigned-assets/:userId', async (req, res) => {
+//   const { userId } = req.params;
+
+//   // Validate userId
+//   if (!mongoose.Types.ObjectId.isValid(userId)) {
+//     return res.status(400).json({ error: 'Invalid User ID' });
+//   }
+
+//   try {
+//     // Find the assignments for the user
+//     const userAssignments = await AssignmentModel.find({ 'user.id': userId })
+//       .populate('asset') // Populates the asset field with asset details
+//        .populate('user')  // Populates the user field with user details
+//       .exec();
+
+//     // If no assignments are found
+//     if (!userAssignments || userAssignments.length === 0) {
+//       return res.status(404).json({ message: 'No assets assigned to this user' });
+//     }
+
+//     // Respond with the user's assigned assets
+//     res.json(userAssignments);
+//   } catch (error) {
+//     console.error('Error fetching user assignments:', error);
+//     res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
+//   }
+// });
+
+
+// // Middleware to extract user from token
+// const authenticateToken = (req, res, next) => {
+//   const authHeader = req.headers['authorization'];
+//   const token = authHeader && authHeader.split(' ')[1];
+  
+//   if (token == null) return res.sendStatus(401);
+
+//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
+//     if (err) return res.sendStatus(403);
+//     req.userEmail = user.email; // Set user email in request
+//     next();
+//   });
+// };
+// // Fetch assigned assets for the logged-in user
+// app.get("/user-assigned-assets", authenticateToken, async (req, res) => {
+//   try {
+//     const userEmail = req.userEmail;
+
+//     if (!userEmail) {
+//       return res.status(400).json({ error: "User email is required" });
+//     }
+
+//     // Find the user by email
+//     const user = await EmployeeModel.findOne({ email: userEmail });
+//     if (!user) {
+//       return res.status(404).json({ error: "User not found" });
+//     }
+
+//     // Find assignments for the user
+//     const assignments = await AssignmentModel.find({ "user.id": user._id })
+//       .populate("asset") // Populate asset details
+//       .populate("user"); // Populate user details
+
+//     res.json(assignments);
+//   } catch (error) {
+//     console.error("Error fetching user assigned assets:", error);
+//     res.status(500).json({ error: "Error fetching user assigned assets", details: error.message });
+//   }
+// });
 
 
 
