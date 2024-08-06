@@ -7,6 +7,8 @@ const EmployeeSchema = new mongoose.Schema({
   email: { type: String, required: false }, // Ensure email is unique
   password: { type: String, required: false },
   department: { type: String, required: false },
+  securityQuestion: { type: String, required: true },
+  securityAnswer: { type: String, required: true },
 });
 
 const EmployeeModel = mongoose.model("Employee", EmployeeSchema);

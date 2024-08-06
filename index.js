@@ -526,48 +526,6 @@ app.get('/assigned-assets/:userId', async (req, res) => {
 // });
 
 
-// // Middleware to extract user from token
-// const authenticateToken = (req, res, next) => {
-//   const authHeader = req.headers['authorization'];
-//   const token = authHeader && authHeader.split(' ')[1];
-  
-//   if (token == null) return res.sendStatus(401);
-
-//   jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-//     if (err) return res.sendStatus(403);
-//     req.userEmail = user.email; // Set user email in request
-//     next();
-//   });
-// };
-// // Fetch assigned assets for the logged-in user
-// app.get("/user-assigned-assets", authenticateToken, async (req, res) => {
-//   try {
-//     const userEmail = req.userEmail;
-
-//     if (!userEmail) {
-//       return res.status(400).json({ error: "User email is required" });
-//     }
-
-//     // Find the user by email
-//     const user = await EmployeeModel.findOne({ email: userEmail });
-//     if (!user) {
-//       return res.status(404).json({ error: "User not found" });
-//     }
-
-//     // Find assignments for the user
-//     const assignments = await AssignmentModel.find({ "user.id": user._id })
-//       .populate("asset") // Populate asset details
-//       .populate("user"); // Populate user details
-
-//     res.json(assignments);
-//   } catch (error) {
-//     console.error("Error fetching user assigned assets:", error);
-//     res.status(500).json({ error: "Error fetching user assigned assets", details: error.message });
-//   }
-// });
-
-
-
 // Endpoint to reset password
 app.post("/resetpassword", async (req, res) => {
   const { email, newPassword } = req.body;
@@ -604,6 +562,103 @@ app.post("/resetpassword", async (req, res) => {
     res
       .status(500)
       .json({ message: "An error occurred while resetting the password." });
+  }
+});
+
+app.post('/validate-security', async (req, res) => {
+  const { email, securityQuestion, securityAnswer } = req.body;
+
+  if (!email || !securityQuestion || !securityAnswer) {
+    return res.status(400).json({ success: false, message: 'All fields are required.' });
+  }
+
+  try {
+    const user = await EmployeeModel.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (user.securityQuestion !== securityQuestion || user.securityAnswer !== securityAnswer) {
+      return res.status(400).json({ success: false, message: 'Security question or answer is incorrect.' });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error validating security question:', error);
+    res.status(500).json({ success: false, message: 'An error occurred. Please try again.' });
+  }
+});
+
+// Route to get the security question for a user by email
+app.get('/security-question', async (req, res) => {
+  const { email } = req.query; // Get the email from query parameters
+
+  if (!email) {
+    return res.status(400).json({ message: 'Email is required' });
+  }
+
+  try {
+    const user = await EmployeeModel.findOne({ email }).select('securityQuestion securityAnswer');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({ securityQuestion: user.securityQuestion, securityAnswer: user.securityAnswer });
+  } catch (error) {
+    console.error('Error fetching security question:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+
+app.post('/update-security-question', async (req, res) => {
+  const { userId, newSecurityQuestion, newSecurityAnswer } = req.body;
+
+  try {
+    const user = await EmployeeModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.securityQuestion = newSecurityQuestion;
+    user.securityAnswer = newSecurityAnswer;
+    await user.save();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating security question:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
+  }
+});
+
+
+
+// Route to reset the password
+app.post('/reset-password', async (req, res) => {
+  const { email, securityAnswer, newPassword } = req.body;
+
+  if (!email || !securityAnswer || !newPassword) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+
+  try {
+    const user = await EmployeeModel.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.securityAnswer !== securityAnswer) {
+      return res.status(400).json({ message: 'Security answer is incorrect' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
 
