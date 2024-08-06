@@ -477,16 +477,16 @@ app.get("/transfer-history", async (req, res) => {
 // Endpoint to get assigned assets for a specific user
 app.get('/assigned-assets/:userId', async (req, res) => {
   const { userId } = req.params;
-
+console.log(userId);
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ error: 'Invalid User ID' });
   }
 
   try {
-    const userAssignments = await AssignmentModel.find({ 'user.id': userId })
+    const userAssignments = await AssignmentModel.find({ '_id': userId })
       .populate('asset') // Populates the asset field with asset details
       .exec();
-
+console.log(userAssignments);
     if (!userAssignments || userAssignments.length === 0) {
       return res.status(404).json({ message: 'No assets assigned to this user' });
     }
