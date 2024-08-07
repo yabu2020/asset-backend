@@ -449,16 +449,17 @@ app.get("/transfer-history", async (req, res) => {
 // Endpoint to get assigned assets for a specific user
 app.get('/assigned-assets/:userId', async (req, res) => {
   const { userId } = req.params;
-console.log(userId);
+  // console.log('User ID:', userId); // Log userId to verify
+
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ error: 'Invalid User ID' });
   }
 
   try {
-    const userAssignments = await AssignmentModel.find({ 'user.id': userId })
+    const userAssignments = await AssignmentModel.find({ user: userId })
       .populate('asset') // Populates the asset field with asset details
       .exec();
-console.log(userAssignments);
+      // console.log('User Assignments:', userAssignments); // Log assignments to verify
     if (!userAssignments || userAssignments.length === 0) {
       return res.status(404).json({ message: 'No assets assigned to this user' });
     }
@@ -469,34 +470,6 @@ console.log(userAssignments);
     res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
   }
 });
-// app.get('/assigned-assets/:userId', async (req, res) => {
-//   const { userId } = req.params;
-
-//   // Validate userId
-//   if (!mongoose.Types.ObjectId.isValid(userId)) {
-//     return res.status(400).json({ error: 'Invalid User ID' });
-//   }
-
-//   try {
-//     // Find the assignments for the user
-//     const userAssignments = await AssignmentModel.find({ 'user.id': userId })
-//       .populate('asset') // Populates the asset field with asset details
-//        .populate('user')  // Populates the user field with user details
-//       .exec();
-
-//     // If no assignments are found
-//     if (!userAssignments || userAssignments.length === 0) {
-//       return res.status(404).json({ message: 'No assets assigned to this user' });
-//     }
-
-//     // Respond with the user's assigned assets
-//     res.json(userAssignments);
-//   } catch (error) {
-//     console.error('Error fetching user assignments:', error);
-//     res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
-//   }
-// });
-
 
 // Endpoint to reset password
 app.post("/resetpassword", async (req, res) => {
@@ -602,8 +575,6 @@ app.post('/update-security-question', async (req, res) => {
     res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
-
-
 
 // Route to reset the password
 app.post('/reset-password', async (req, res) => {
