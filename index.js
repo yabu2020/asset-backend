@@ -281,8 +281,10 @@ app.post("/giveasset", async (req, res) => {
  
     // Check if the asset is already assigned to the user
     const existingAssignment = await AssignmentModel.findOne({
-      "asset.assetid": assetId,
-      "user.id": userId,
+      // "asset.assetid": assetId,
+      // "user.id": userId,
+      asset: assetId,
+      user: userId,
     }).session(session);
 
     if (existingAssignment) {
@@ -306,24 +308,12 @@ app.post("/giveasset", async (req, res) => {
     // Save the updated asset
     await asset.save({ session });
     // console.log("Asset quantity before update:", asset.quantity);
-  
 
-    // Create a new assignment
     const assignment = new AssignmentModel({
-      asset: {
-        assetid: asset.id,
-        name: asset.name,
-        serialno: asset.serialno,
-      },
-      user: {
-        id: user.id,
-        name: user.name,
-        department: user.department,
-        email: user.email,
-      },
+      asset: assetId, // Use assetId directly
+      user: userId,  // Use userId directly
       dateAssigned: new Date(),
     });
-
     // Save the assignment
     await assignment.save({ session });
 
@@ -342,16 +332,18 @@ app.post("/giveasset", async (req, res) => {
 });
 
 // Endpoint to get all assigned assets
-app.get("/assigned-assets", (req, res) => {
-  AssignmentModel.find({})
-    .populate("asset") // Populates the asset field with asset details
-    .populate("user") // Populates the user field with user details
-    .then((assignments) => res.json(assignments))
-    .catch((err) =>
-      res.status(500).json({ message: "Error fetching assigned assets" })
-    );
-});
+app.get("/assigned-assets", async (req, res) => {
+  try {
+    const assignments = await AssignmentModel.find({})
+      .populate('asset') // Populates the asset field with asset details
+      .populate('user')  // Populates the user field with user details
+      .exec();
 
+    res.json(assignments);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching assigned assets" });
+  }
+});
 
 
 // Endpoint to transfer an asset from one user to another
@@ -389,13 +381,13 @@ try{
    if (!fromUser) {
      await session.abortTransaction();
      session.endSession();
-     return res.status(404).json({ error: "User not found" });
+     return res.status(404).json({ error: "From User not found" });
    }
    const toUser = await EmployeeModel.findById(toUserId).session(session);
    if (!toUser) {
      await session.abortTransaction();
      session.endSession();
-     return res.status(404).json({ error: "User not found" });
+     return res.status(404).json({ error: "To User not found" });
    }
      // Check if both users are in the same department
      if (fromUser.department !== toUser.department) {
@@ -406,10 +398,10 @@ try{
 
     // Find the current assignment
     const currentAssignment = await AssignmentModel.findOne({
-      "asset.assetid": assetId,
-      //"fromUser.id": fromUserId,
+      asset: assetId,
+      user: fromUserId
     }).session(session);
-     
+
     if (!currentAssignment) {
       await session.abortTransaction();
       session.endSession();
@@ -417,36 +409,16 @@ try{
     }
 
     // Update the assignment to the new user
-    currentAssignment.user = {
-      id: toUserId,
-      name: toUser.name,
-      email: toUser.email,
-      department: toUser.department,
-    };
+    currentAssignment.user = toUserId;
     await currentAssignment.save({ session });
 
     // Record the transfer in TransferHistory
     const transfer = new TransferHistory({
-      asset: {
-        assetid: asset.id,
-        name: asset.name,
-        serialno: asset.serialno,
-      },
-      fromUser: {
-        id: fromUser.id,
-        name: fromUser.name,
-        department: fromUser.department,
-        email: fromUser.email,
-      },
-      toUser: {
-        id: toUser.id,
-        name: toUser.name,
-        department: toUser.department,
-        email: toUser.email,
-      },
+      asset: assetId,
+      fromUser: fromUserId,
+      toUser: toUserId,
       dateTransfered: new Date(),
     });
-
     await transfer.save({ session });
 
     // Commit the transaction
@@ -483,7 +455,7 @@ console.log(userId);
   }
 
   try {
-    const userAssignments = await AssignmentModel.find({ '_id': userId })
+    const userAssignments = await AssignmentModel.find({ 'user.id': userId })
       .populate('asset') // Populates the asset field with asset details
       .exec();
 console.log(userAssignments);

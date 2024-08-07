@@ -1,17 +1,15 @@
-// model/Assignment.js
 const mongoose = require("mongoose");
 
 const AssignmentSchema = new mongoose.Schema({
   asset: {
-    assetid: String,
-    name: String,
-    serialno: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asset', // Reference to the Asset model
+    required: true,
   },
   user: {
-    id: String,
-    name: String,
-    email: String,
-    department: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee', // Reference to the Employee model
+    required: true,
   },
   dateAssigned: { type: Date, default: Date.now },
 });

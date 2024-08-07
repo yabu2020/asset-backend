@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const EmployeeSchema = new mongoose.Schema({
   role: { type: String, required: false },
-  id: { type: String, required: false }, // Ensure id is unique
+  id: { type: String, required: false, unique: true },
   name: { type: String, required: false },
-  email: { type: String, required: false }, // Ensure email is unique
+  email: { type: String, required: false, unique: true },
   password: { type: String, required: false },
   department: { type: String, required: false },
   securityQuestion: { type: String, required: true },

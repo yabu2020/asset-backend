@@ -1,23 +1,21 @@
 const mongoose = require("mongoose");
+
 const transferHistorySchema = new mongoose.Schema({
   asset: {
-    assetid: String,
-    name: String,
-    serialno: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asset', // Reference to the Asset model
+    required: true,
   },
   fromUser: {
-    id: String,
-    name: String,
-    email: String,
-    department: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee', // Reference to the Employee model
+    required: true,
   },
   toUser: {
-    id: String,
-    name: String,
-    email: String,
-    department: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Employee', // Reference to the Employee model
+    required: true,
   },
-
   dateTransfered: { type: Date, default: Date.now },
 });
 
