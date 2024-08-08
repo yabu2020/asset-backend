@@ -281,8 +281,6 @@ app.post("/giveasset", async (req, res) => {
  
     // Check if the asset is already assigned to the user
     const existingAssignment = await AssignmentModel.findOne({
-      // "asset.assetid": assetId,
-      // "user.id": userId,
       asset: assetId,
       user: userId,
     }).session(session);
@@ -449,7 +447,6 @@ app.get("/transfer-history", async (req, res) => {
 // Endpoint to get assigned assets for a specific user
 app.get('/assigned-assets/:userId', async (req, res) => {
   const { userId } = req.params;
-  // console.log('User ID:', userId); // Log userId to verify
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ error: 'Invalid User ID' });
@@ -457,9 +454,9 @@ app.get('/assigned-assets/:userId', async (req, res) => {
 
   try {
     const userAssignments = await AssignmentModel.find({ user: userId })
-      .populate('asset') // Populates the asset field with asset details
+      .populate('asset')
       .exec();
-      // console.log('User Assignments:', userAssignments); // Log assignments to verify
+     
     if (!userAssignments || userAssignments.length === 0) {
       return res.status(404).json({ message: 'No assets assigned to this user' });
     }
@@ -470,6 +467,47 @@ app.get('/assigned-assets/:userId', async (req, res) => {
     res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
   }
 });
+
+// Endpoint to get user ID by email and check the role
+app.get('/user-id-email/:email', async (req, res) => {
+  const { email } = req.params;
+
+  try {
+    const user = await EmployeeModel.findOne({ email }).exec(); // Assuming EmployeeModel is your user model
+    if (!user) {
+      return res.status(404).json({ error: 'No user found with this email' });
+    }
+    if (user.role !== 'Admin') {
+      return res.status(403).json({ error: 'Access denied. Only admins can view this assets.' });
+    }
+    res.json({ userId: user._id });
+  } catch (error) {
+    console.error('Error fetching user by email:', error);
+    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
+  }
+});
+
+// Endpoint to get user ID by email
+// Endpoint to get user ID by email and check the role
+app.get('/user-id-by-email/:email', async (req, res) => {
+  const { email } = req.params;
+
+  try {
+    const user = await EmployeeModel.findOne({ email }).exec();
+    if (!user) {
+      return res.status(404).json({ error: 'No user found with this email' });
+    }
+    if (user.role !== 'Clerk') { // Check if the role is not clerk
+      return res.status(403).json({ error: 'Access denied. Only clerks can view this assigned assets.' });
+    }
+    res.json({ userId: user._id });
+  } catch (error) {
+    console.error('Error fetching user by email:', error);
+    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
+  }
+});
+
+
 
 // Endpoint to reset password
 app.post("/resetpassword", async (req, res) => {
@@ -537,24 +575,27 @@ app.post('/validate-security', async (req, res) => {
 
 // Route to get the security question for a user by email
 app.get('/security-question', async (req, res) => {
-  const { email } = req.query; // Get the email from query parameters
+  const { userId } = req.query; // Get the userId from query parameters
 
-  if (!email) {
-    return res.status(400).json({ message: 'Email is required' });
+  if (!userId) {
+    return res.status(400).json({ message: 'User ID is required' });
   }
 
   try {
-    const user = await EmployeeModel.findOne({ email }).select('securityQuestion securityAnswer');
+    const user = await EmployeeModel.findById(userId).select('securityQuestion securityAnswer');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    res.json({ securityQuestion: user.securityQuestion, securityAnswer: user.securityAnswer });
+
+    res.json({
+      securityQuestion: user.securityQuestion || 'No current security question',
+      securityAnswer: user.securityAnswer || ''
+    });
   } catch (error) {
     console.error('Error fetching security question:', error);
     res.status(500).json({ error: 'Server error', details: error.message });
   }
 });
-
 
 app.post('/update-security-question', async (req, res) => {
   const { userId, newSecurityQuestion, newSecurityAnswer } = req.body;

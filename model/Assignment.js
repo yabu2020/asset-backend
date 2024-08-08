@@ -11,6 +11,7 @@ const AssignmentSchema = new mongoose.Schema({
     ref: 'Employee', // Reference to the Employee model
     required: true,
   },
+ 
   dateAssigned: { type: Date, default: Date.now },
 });
 
