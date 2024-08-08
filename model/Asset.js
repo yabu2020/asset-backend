@@ -1,20 +1,21 @@
-const mongoose = require("mongoose");
+const mongoose = require('mongoose');
 
 const assetSchema = new mongoose.Schema({
-  assetid: { type: String, required: false },
-  name: { type: String, required: false },
+  assetid: { type: String }, // Optional if not used
+  name: { type: String, required: true },
   assetno: { type: String, required: true },
   serialno: { type: String, required: true },
   model: { type: String },
-  quantity: { type: Number }, // Changed to Number for quantity
+  quantity: { type: Number, default: 1 },
   description: { type: String },
   status: {
     type: String,
-    enum: ["Available", "Under Maintenance", "Retired"], // Capitalize "Retired"
+    enum: ["Available", "In Use", "Under Maintenance", "Retired"],
     default: "Available",
   },
+  category: { type: String, required: true }, // Ensure correct field name
 });
 
-const AssetModel = mongoose.model("Asset", assetSchema);
+const AssetModel = mongoose.model('Asset', assetSchema);
 
 module.exports = AssetModel;

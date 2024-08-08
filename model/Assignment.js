@@ -13,6 +13,7 @@ const AssignmentSchema = new mongoose.Schema({
   },
  
   dateAssigned: { type: Date, default: Date.now },
+  approved: { type: Boolean, default: false } // Add this field to track approval status
 });
 
 module.exports = mongoose.model("Assignment", AssignmentSchema);

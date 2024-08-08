@@ -66,9 +66,8 @@ app.post("/", async (req, res) => {
   }
 });
 app.post("/adduser", async (req, res) => {
-  const { role, id, name, email, password, department } = req.body;
+  const { role, name, email, password, department } = req.body;
 
-  // Validate inputs
   if (!["user", "Admin", "Clerk", "asset approver"].includes(role)) {
     return res.status(400).json({ error: "Invalid role" });
   }
@@ -79,41 +78,35 @@ app.post("/adduser", async (req, res) => {
   }
 
   try {
-    // Check if the user with the same email or id already exists
     const existingUser = await EmployeeModel.findOne({
-      $or: [{ email: email }, { id: id }],
+      $or: [{ email: email }],
     });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ error: "User is already registered with this email or id" });
+      return res.status(400).json({ error: "User is already registered with this email " });
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create new user
     const newUser = new EmployeeModel({
       role,
-      id,
       name,
       email,
       password: hashedPassword,
       department,
     });
 
-    // Save the user to the database
     const savedUser = await newUser.save();
     res.json(savedUser);
   } catch (err) {
+    console.error("Error adding user:", err); // Log the detailed error
     if (err.code === 11000) {
-      // Handle duplicate key error
       res.status(400).json({ error: "Duplicate id or email" });
     } else {
       res.status(500).json({ error: "Error adding user" });
     }
   }
 });
+
 
 app.get("/users", (req, res) => {
   EmployeeModel.find({})
@@ -163,47 +156,53 @@ app.put("/users/:id", (req, res) => {
     });
 });
 
-// Endpoint to register an asset
-app.post("/registerasset", (req, res) => {
-  const {
-    assetid,
-    name,
-    assetno,
-    serialno,
-    model,
-    quantity,
-    description,
-    status,
-  } = req.body;
+// Endpoint to register multiple assets
+app.post('/registerassets', async (req, res) => {
+  try {
+    const assets = req.body; // This should be an array of asset objects
 
-  if (!name) {
-    return res.status(400).json({ error: "Name is required" });
+    // Validate assets
+    if (!Array.isArray(assets) || assets.length === 0) {
+      return res.status(400).json({ error: 'Invalid data. Array of assets is required.' });
+    }
+
+    // Save each asset
+    const savedAssets = await Promise.all(assets.map(asset => {
+      if (!asset.name || !asset.assetno || !asset.serialno || !asset.category) {
+        throw new Error('Name, assetno, serialno, and category are required.');
+      }
+      return new AssetModel(asset).save();
+    }));
+
+    res.status(200).json(savedAssets);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
-
-  const newAsset = new AssetModel({
-    assetid,
-    name,
-    assetno,
-    serialno,
-    model,
-    quantity,
-    description,
-    status, // Include status in the asset model
-  });
-
-  newAsset
-    .save()
-    .then((asset) => res.json(asset))
-    .catch((err) => res.status(400).json({ error: "Error saving asset" }));
 });
-// Fetch a specific asset by ID
 
-// Endpoint to get all assets
-app.get("/assets", (req, res) => {
-  AssetModel.find({})
-    .then((assets) => res.json(assets))
-    .catch((err) => res.status(500).json({ message: "Error fetching assets" }));
+app.get("/assets", async (req, res) => {
+  try {
+    const assets = await AssetModel.aggregate([
+      {
+        $group: {
+          _id: "$category", // Group by category
+          assets: { $push: "$$ROOT" } // Collect all assets into an array
+        }
+      }
+    ]);
+
+    res.json(assets);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching assets" });
+  }
 });
+
+//  Endpoint to get all assets
+// app.get("/assets", (req, res) => {
+//   AssetModel.find({})
+//     .then((assets) => res.json(assets))
+//     .catch((err) => res.status(500).json({ message: "Error fetching assets" }));
+// });
 // Update asset information
 app.put("/updateasset/:id", async (req, res) => {
   try {
@@ -217,8 +216,10 @@ app.put("/updateasset/:id", async (req, res) => {
       quantity,
       description,
       status,
+      category // Include category in the update
     } = req.body;
 
+    // Find and update the asset
     const updatedAsset = await AssetModel.findByIdAndUpdate(
       id,
       {
@@ -230,9 +231,11 @@ app.put("/updateasset/:id", async (req, res) => {
         quantity,
         description,
         status,
+        category // Include category in the update
       },
       { new: true }
     );
+
     if (updatedAsset) {
       res.json(updatedAsset);
     } else {
@@ -242,6 +245,7 @@ app.put("/updateasset/:id", async (req, res) => {
     res.status(500).json({ message: "Error updating asset" });
   }
 });
+
 // Endpoint to assign asset to user
 app.post("/giveasset", async (req, res) => {
   const { assetId, userId } = req.body;
@@ -487,7 +491,6 @@ app.get('/user-id-email/:email', async (req, res) => {
   }
 });
 
-// Endpoint to get user ID by email
 // Endpoint to get user ID by email and check the role
 app.get('/user-id-by-email/:email', async (req, res) => {
   const { email } = req.params;
@@ -506,7 +509,49 @@ app.get('/user-id-by-email/:email', async (req, res) => {
     res.status(500).json({ error: 'Error fetching user by email', details: error.message });
   }
 });
+app.get('/user-email/:email', async (req, res) => {
+  const { email } = req.params;
 
+  try {
+    const user = await EmployeeModel.findOne({ email }).exec();
+    if (!user) {
+      return res.status(404).json({ error: 'No user found with this email' });
+    }
+    if (user.role !== 'asset approver') { // Check if the role is not clerk
+      return res.status(403).json({ error: 'Access denied. Only clerks can view this assigned assets.' });
+    }
+    res.json({ userId: user._id });
+  } catch (error) {
+    console.error('Error fetching user by email:', error);
+    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
+  }
+});
+
+app.put('/approve-asset/:id', async (req, res) => {
+  const { id } = req.params;
+  const { approved } = req.body;
+
+  if (typeof approved !== 'boolean') {
+    return res.status(400).json({ error: 'Approval status must be a boolean value' });
+  }
+
+  try {
+    const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
+      id,
+      { approved },
+      { new: true }
+    );
+
+    if (!updatedAssignment) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    res.json(updatedAssignment);
+  } catch (error) {
+    console.error('Error approving asset:', error);
+    res.status(500).json({ error: 'Error approving asset', details: error.message });
+  }
+});
 
 
 // Endpoint to reset password
