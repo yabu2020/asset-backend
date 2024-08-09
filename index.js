@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt"); // For hashing passwords
 const EmployeeModel = require("./model/Employee");
 const AssetModel = require("./model/Asset");
 const AssignmentModel = require("./model/Assignment");
+const CategoryModel = require("./model/Category");
 const TransferHistory = require('./model/TransferHistory');
 
 
@@ -154,6 +155,37 @@ app.put("/users/:id", (req, res) => {
           .json({ message: "Error updating user", error: err.message });
       }
     });
+});
+// Route to register a category
+app.post('/category', async (req, res) => {
+  try {
+    const { code, description, category } = req.body;
+
+    // Create a new category document
+    const newCategory = new CategoryModel({
+      code,
+      description,
+      category
+    });
+
+    // Save the category to the database
+    await newCategory.save();
+
+    res.status(201).json({ message: 'Category registered successfully.' });
+  } catch (error) {
+    console.error('Error registering category:', error); // Log the error for debugging
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// Route to fetch all categories
+app.get('/categories', async (req, res) => {
+  try {
+    const categories = await CategoryModel.find(); // Fetch all categories from the database
+    res.status(200).json(categories);
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // Endpoint to register multiple assets
@@ -461,9 +493,9 @@ app.get('/assigned-assets/:userId', async (req, res) => {
       .populate('asset')
       .exec();
      
-    if (!userAssignments || userAssignments.length === 0) {
-      return res.status(404).json({ message: 'No assets assigned to this user' });
-    }
+      if (!userAssignments || userAssignments.length === 0) {
+        return res.json([]); // Return empty array instead of message
+      }
 
     res.json(userAssignments);
   } catch (error) {
@@ -473,59 +505,23 @@ app.get('/assigned-assets/:userId', async (req, res) => {
 });
 
 // Endpoint to get user ID by email and check the role
-app.get('/user-id-email/:email', async (req, res) => {
-  const { email } = req.params;
+// app.get('/user-id-email/:email', async (req, res) => {
+//   const { email } = req.params;
 
-  try {
-    const user = await EmployeeModel.findOne({ email }).exec(); // Assuming EmployeeModel is your user model
-    if (!user) {
-      return res.status(404).json({ error: 'No user found with this email' });
-    }
-    if (user.role !== 'Admin') {
-      return res.status(403).json({ error: 'Access denied. Only admins can view this assets.' });
-    }
-    res.json({ userId: user._id });
-  } catch (error) {
-    console.error('Error fetching user by email:', error);
-    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
-  }
-});
-
-// Endpoint to get user ID by email and check the role
-app.get('/user-id-by-email/:email', async (req, res) => {
-  const { email } = req.params;
-
-  try {
-    const user = await EmployeeModel.findOne({ email }).exec();
-    if (!user) {
-      return res.status(404).json({ error: 'No user found with this email' });
-    }
-    if (user.role !== 'Clerk') { // Check if the role is not clerk
-      return res.status(403).json({ error: 'Access denied. Only clerks can view this assigned assets.' });
-    }
-    res.json({ userId: user._id });
-  } catch (error) {
-    console.error('Error fetching user by email:', error);
-    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
-  }
-});
-app.get('/user-email/:email', async (req, res) => {
-  const { email } = req.params;
-
-  try {
-    const user = await EmployeeModel.findOne({ email }).exec();
-    if (!user) {
-      return res.status(404).json({ error: 'No user found with this email' });
-    }
-    if (user.role !== 'asset approver') { // Check if the role is not clerk
-      return res.status(403).json({ error: 'Access denied. Only clerks can view this assigned assets.' });
-    }
-    res.json({ userId: user._id });
-  } catch (error) {
-    console.error('Error fetching user by email:', error);
-    res.status(500).json({ error: 'Error fetching user by email', details: error.message });
-  }
-});
+//   try {
+//     const user = await EmployeeModel.findOne({ email }).exec(); // Assuming EmployeeModel is your user model
+//     if (!user) {
+//       return res.status(404).json({ error: 'No user found with this email' });
+//     }
+//     if (user.role !== 'Admin') {
+//       return res.status(403).json({ error: 'Access denied. Only admins can view this assets.' });
+//     }
+//     res.json({ userId: user._id });
+//   } catch (error) {
+//     console.error('Error fetching user by email:', error);
+//     res.status(500).json({ error: 'Error fetching user by email', details: error.message });
+//   }
+// });
 
 app.put('/approve-asset/:id', async (req, res) => {
   const { id } = req.params;
