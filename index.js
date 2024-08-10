@@ -25,33 +25,33 @@ const validatePassword = (password) => {
     return "Password must be at least 6 characters long";
   }
 
-  // Check password complexity
-  const complexityRe =
-    /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/;
+  // Check password complexity: at least one letter and one number
+  const complexityRe = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/;
   if (!complexityRe.test(password)) {
-    return "Password must contain at least one letter, one number, and one special character";
+    return "Password must contain at least one letter and one number";
   }
 
   return null;
 };
 
-app.post("/", async (req, res) => {
-  const { email, password } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ message: "Email is required" });
+app.post("/", async (req, res) => {
+  const { name, password } = req.body;
+
+  if (!name) {
+    return res.status(400).json({ message: "Name is required" });
   }
   if (!password) {
     return res.status(400).json({ message: "Password is required" });
   }
 
   try {
-    const user = await EmployeeModel.findOne({ email: email });
+    const user = await EmployeeModel.findOne({ name: name});
 
     if (!user) {
       return res
         .status(404)
-        .json({ message: "No record found with this email" });
+        .json({ message: "No record found with this name" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
