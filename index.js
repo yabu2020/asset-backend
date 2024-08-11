@@ -205,22 +205,22 @@ app.get('/categories', async (req, res) => {
 //   }
 // });
 // Endpoint to get categories with asset quantities
-app.get('/categories-with-quantity', async (req, res) => {
-  try {
-    const categoriesWithQuantity = await AssetModel.aggregate([
-      {
-        $group: {
-          _id: "$category",
-          quantity: { $sum: 1 } // Count each asset per category
-        }
-      }
-    ]);
+// app.get('/categories-with-quantity', async (req, res) => {
+//   try {
+//     const categoriesWithQuantity = await AssetModel.aggregate([
+//       {
+//         $group: {
+//           _id: "$category",
+//           quantity: { $sum: 1 } // Count each asset per category
+//         }
+//       }
+//     ]);
 
-    res.json(categoriesWithQuantity);
-  } catch (error) {
-    res.status(500).json({ message: "Error fetching categories with quantity" });
-  }
-});
+//     res.json(categoriesWithQuantity);
+//   } catch (error) {
+//     res.status(500).json({ message: "Error fetching categories with quantity" });
+//   }
+// });
 
 
 
@@ -268,7 +268,7 @@ app.post('/registerassets', async (req, res) => {
 app.get('/assets', async (req, res) => {
   try {
     // Fetch assets and categories from your database
-    const assets = await AssetModel.find().lean(); // Use .lean() for plain JavaScript objects
+    const assets = await Asset.find().lean(); // Use .lean() for plain JavaScript objects
     const categories = await Category.find().lean();
 
     // Process categories and assets to include totalQuantity
