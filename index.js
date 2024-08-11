@@ -187,6 +187,43 @@ app.get('/categories', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+// app.get('/categories-with-quantity', async (req, res) => {
+//   try {
+//     const categoriesWithQuantity = await AssetModel.aggregate([
+//       {
+//         $group: {
+//           _id: "$category",
+//           quantity: { $sum: "$quantity" } // Ensure this field is correct
+//         }
+//       }
+//     ]);
+
+//     res.status(200).json(categoriesWithQuantity);
+//   } catch (error) {
+//     console.error('Error fetching categories with quantity:', error);
+//     res.status(500).json({ message: "Error fetching categories with quantity" });
+//   }
+// });
+// Endpoint to get categories with asset quantities
+app.get('/categories-with-quantity', async (req, res) => {
+  try {
+    const categoriesWithQuantity = await AssetModel.aggregate([
+      {
+        $group: {
+          _id: "$category",
+          quantity: { $sum: 1 } // Count each asset per category
+        }
+      }
+    ]);
+
+    res.json(categoriesWithQuantity);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching categories with quantity" });
+  }
+});
+
+
+
 
 // Endpoint to register multiple assets
 app.post('/registerassets', async (req, res) => {
@@ -212,22 +249,49 @@ app.post('/registerassets', async (req, res) => {
   }
 });
 
-app.get("/assets", async (req, res) => {
-  try {
-    const assets = await AssetModel.aggregate([
-      {
-        $group: {
-          _id: "$category", // Group by category
-          assets: { $push: "$$ROOT" } // Collect all assets into an array
-        }
-      }
-    ]);
+// app.get("/assets", async (req, res) => {
+//   try {
+//     const assets = await AssetModel.aggregate([
+//       {
+//         $group: {
+//           _id: "$category", // Group by category
+//           assets: { $push: "$$ROOT" } // Collect all assets into an array
+//         }
+//       }
+//     ]);
 
-    res.json(assets);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching assets" });
+//     res.json(assets);
+//   } catch (err) {
+//     res.status(500).json({ message: "Error fetching assets" });
+//   }
+// });
+app.get('/assets', async (req, res) => {
+  try {
+    // Fetch assets and categories from your database
+    const assets = await AssetModel.find().lean(); // Use .lean() for plain JavaScript objects
+    const categories = await Category.find().lean();
+
+    // Process categories and assets to include totalQuantity
+    const categoryGroups = categories.map(category => {
+      // Filter assets belonging to the current category
+      const categoryAssets = assets.filter(asset => asset.categoryId.toString() === category._id.toString());
+      
+      // Calculate total quantity for the category
+      const totalQuantity = categoryAssets.reduce((sum, asset) => sum + (asset.quantity || 0), 0);
+console.log(totalQuantity);
+      return {
+        ...category,
+        assets: categoryAssets,
+        totalQuantity
+      };
+    });
+
+    res.json(categoryGroups);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
+
 
 //  Endpoint to get all assets
 // app.get("/assets", (req, res) => {
