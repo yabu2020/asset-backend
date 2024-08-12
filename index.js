@@ -6,7 +6,7 @@ const bcrypt = require("bcrypt"); // For hashing passwords
 const EmployeeModel = require("./model/Employee");
 const AssetModel = require("./model/Asset");
 const AssignmentModel = require("./model/Assignment");
-const CategoryModel = require("./model/Category");
+const DepartmentModel = require("./model/Department");
 const TransferHistory = require('./model/TransferHistory');
 
 
@@ -177,6 +177,7 @@ app.post('/category', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // Route to fetch all categories
 app.get('/categories', async (req, res) => {
   try {
@@ -187,7 +188,36 @@ app.get('/categories', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+app.post('/department', async (req, res) => {
+  try {
+    const { code, description, department } = req.body;
 
+    // Create a new category document
+    const newDepartment = new DepartmentModel({
+      code,
+      description,
+      department
+    });
+
+    // Save the category to the database
+    await newDepartment.save();
+
+    res.status(201).json({ message: 'Department registered successfully.' });
+  } catch (error) {
+    console.error('Error registering department:', error); // Log the error for debugging
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.get('/departments', async (req, res) => {
+  try {
+    const departments = await DepartmentModel.find(); // Fetch all categories from the database
+    res.status(200).json(departments);
+  } catch (error) {
+    console.error('Error fetching departments:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 // Endpoint to register multiple assets
 app.post('/registerassets', async (req, res) => {
   try {
@@ -313,7 +343,7 @@ app.post("/giveasset", async (req, res) => {
       session.endSession();
       return res.status(404).json({ error: "User not found" });
     }
- 
+
     // Check if the asset is already assigned to the user
     const existingAssignment = await AssignmentModel.findOne({
       asset: assetId,
@@ -321,12 +351,9 @@ app.post("/giveasset", async (req, res) => {
     }).session(session);
 
     if (existingAssignment) {
-      
       await session.abortTransaction();
       session.endSession();
-      return res
-        .status(400)
-        .json({ error: "Asset already assigned to this user" });
+      return res.status(400).json({ error: "Asset already assigned to this user" });
     }
 
     // Check asset quantity
@@ -336,18 +363,17 @@ app.post("/giveasset", async (req, res) => {
       return res.status(400).json({ error: "Asset quantity is zero" });
     }
 
-    // Decrement asset quantity
+    // Decrement asset quantity and update status to "assigned"
     asset.quantity -= 1;
-    // Save the updated asset
+    asset.status = 'Assigned';  // Update status
     await asset.save({ session });
-    // console.log("Asset quantity before update:", asset.quantity);
 
     const assignment = new AssignmentModel({
-      asset: assetId, // Use assetId directly
-      user: userId,  // Use userId directly
+      asset: assetId,
+      user: userId,
       dateAssigned: new Date(),
     });
-    // Save the assignment
+
     await assignment.save({ session });
 
     // Commit the transaction
@@ -356,13 +382,11 @@ app.post("/giveasset", async (req, res) => {
 
     res.json(assignment);
   } catch (error) {
-    // Abort the transaction if there is an error
     console.error("Error assigning asset:", error);
-    res
-      .status(500)
-      .json({ error: "Error assigning asset", details: error.message });
+    res.status(500).json({ error: "Error assigning asset", details: error.message });
   }
 });
+
 
 // Endpoint to get all assigned assets
 app.get("/assigned-assets", async (req, res) => {
@@ -422,12 +446,6 @@ try{
      session.endSession();
      return res.status(404).json({ error: "To User not found" });
    }
-     // Check if both users are in the same department
-     if (fromUser.department !== toUser.department) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(400).json({ error: "Users must be in the same department to transfer assets" });
-    }
 
     // Find the current assignment
     const currentAssignment = await AssignmentModel.findOne({
@@ -478,6 +496,40 @@ app.get("/transfer-history", async (req, res) => {
   }
 });
 
+// Update approval status endpoint
+app.put('/approve-asset/:id', async (req, res) => {
+  const { id } = req.params;
+  const { Approved } = req.body; // `Approved` should be a boolean
+
+  try {
+    // Determine status based on the `Approved` value
+    const status = Approved ? 'Approved' : 'Assigned';
+
+    // Update the assignment
+    const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedAssignment) {
+      return res.status(404).send('Assignment not found');
+    }
+     // Optionally update the asset status here if required
+     if (Approved) {
+      await AssetModel.findByIdAndUpdate(
+        updatedAssignment.asset,
+        { status: 'Approved' }
+      );
+    }
+
+    res.status(200).json(updatedAssignment);
+  } catch (error) {
+    res.status(500).send(`Error updating approval status: ${error.message}`);
+  }
+});
+
+
 
 // Endpoint to get assigned assets for a specific user
 app.get('/assigned-assets/:userId', async (req, res) => {
@@ -503,31 +555,31 @@ app.get('/assigned-assets/:userId', async (req, res) => {
   }
 });
 
-app.put('/approve-asset/:id', async (req, res) => {
-  const { id } = req.params;
-  const { approved } = req.body;
+// app.put('/approve-asset/:id', async (req, res) => {
+//   const { id } = req.params;
+//   const { approved } = req.body;
 
-  if (typeof approved !== 'boolean') {
-    return res.status(400).json({ error: 'Approval status must be a boolean value' });
-  }
+//   if (typeof approved !== 'boolean') {
+//     return res.status(400).json({ error: 'Approval status must be a boolean value' });
+//   }
 
-  try {
-    const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
-      id,
-      { approved },
-      { new: true }
-    );
+//   try {
+//     const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
+//       id,
+//       { approved },
+//       { new: true }
+//     );
 
-    if (!updatedAssignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
-    }
+//     if (!updatedAssignment) {
+//       return res.status(404).json({ error: 'Assignment not found' });
+//     }
 
-    res.json(updatedAssignment);
-  } catch (error) {
-    console.error('Error approving asset:', error);
-    res.status(500).json({ error: 'Error approving asset', details: error.message });
-  }
-});
+//     res.json(updatedAssignment);
+//   } catch (error) {
+//     console.error('Error approving asset:', error);
+//     res.status(500).json({ error: 'Error approving asset', details: error.message });
+//   }
+// });
 
 
 // Endpoint to reset password

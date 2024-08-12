@@ -10,7 +10,7 @@ const assetSchema = new mongoose.Schema({
   description: { type: String },
   status: {
     type: String,
-    enum: ["Available", "In Use", "Under Maintenance", "Retired"],
+    enum: ["Available", "Assigned", "Approved"],
     default: "Available",
   },
   category: { type: String, required: true }, // Ensure correct field name
