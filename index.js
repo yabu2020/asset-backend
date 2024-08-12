@@ -7,6 +7,7 @@ const EmployeeModel = require("./model/Employee");
 const AssetModel = require("./model/Asset");
 const AssignmentModel = require("./model/Assignment");
 const DepartmentModel = require("./model/Department");
+const CategoryModel = require("./model/Category");
 const TransferHistory = require('./model/TransferHistory');
 
 
