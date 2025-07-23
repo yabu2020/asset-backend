@@ -13,13 +13,30 @@ const TransferHistory = require('./model/TransferHistory');
 
 const app = express();
 app.use(express.json());
-app.use(cors());
+const cors = require("cors");
+
+app.use(cors({
+  origin: "https://asset-ufh5.vercel.app",
+  credentials: true, // if you use cookies or authentication headers
+}));
+
 app.use(bodyParser.json());
 
 mongoose.connect(
-  "mongodb+srv://henokegezew33:yabu2020@cluster0.s4fvdml.mongodb.net/",
-   
+  "mongodb+srv://henokegezew33:yabu2020@cluster0.s4fvdml.mongodb.net/Asset?retryWrites=true&w=majority",
+  {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  }
 );
+mongoose.connection.on("connected", () => {
+  console.log("✅ MongoDB connected successfully.");
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("❌ MongoDB connection error:", err);
+});
+
 const validatePassword = (password) => {
   // Check password length
   if (password.length < 6) {
@@ -36,7 +53,7 @@ const validatePassword = (password) => {
 };
 
 
-app.post("/", async (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { name, password } = req.body;
 
   if (!name) {
@@ -242,7 +259,7 @@ app.post('/registerassets', async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 });
-
+//  Endpoint to get all assets
 app.get("/assets", async (req, res) => {
   try {
     const assets = await AssetModel.aggregate([
@@ -259,12 +276,6 @@ app.get("/assets", async (req, res) => {
     res.status(500).json({ message: "Error fetching assets" });
   }
 });
-//  Endpoint to get all assets
-// app.get("/assets", (req, res) => {
-//   AssetModel.find({})
-//     .then((assets) => res.json(assets))
-//     .catch((err) => res.status(500).json({ message: "Error fetching assets" }));
-// });
 // Update asset information
 app.put("/updateasset/:id", async (req, res) => {
   try {
@@ -529,9 +540,6 @@ app.put('/approve-asset/:id', async (req, res) => {
     res.status(500).send(`Error updating approval status: ${error.message}`);
   }
 });
-
-
-
 // Endpoint to get assigned assets for a specific user
 app.get('/assigned-assets/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -555,34 +563,6 @@ app.get('/assigned-assets/:userId', async (req, res) => {
     res.status(500).json({ error: 'Error fetching user assignments', details: error.message });
   }
 });
-
-// app.put('/approve-asset/:id', async (req, res) => {
-//   const { id } = req.params;
-//   const { approved } = req.body;
-
-//   if (typeof approved !== 'boolean') {
-//     return res.status(400).json({ error: 'Approval status must be a boolean value' });
-//   }
-
-//   try {
-//     const updatedAssignment = await AssignmentModel.findByIdAndUpdate(
-//       id,
-//       { approved },
-//       { new: true }
-//     );
-
-//     if (!updatedAssignment) {
-//       return res.status(404).json({ error: 'Assignment not found' });
-//     }
-
-//     res.json(updatedAssignment);
-//   } catch (error) {
-//     console.error('Error approving asset:', error);
-//     res.status(500).json({ error: 'Error approving asset', details: error.message });
-//   }
-// });
-
-
 // Endpoint to reset password
 app.post("/resetpassword", async (req, res) => {
   const { email, newPassword } = req.body;
